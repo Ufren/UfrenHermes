@@ -1,0 +1,22 @@
+export const ipcChannels = {
+  runtimeStatus: "runtime/status",
+  runtimeStart: "runtime/start",
+  runtimeStop: "runtime/stop",
+  runtimeHealth: "runtime/health",
+  runtimeLogs: "runtime/logs",
+  runtimeProbe: "runtime/probe",
+  dashboardHealth: "dashboard/health",
+  dashboardStart: "dashboard/start",
+  dashboardStop: "dashboard/stop",
+  chatComplete: "chat/complete",
+  appLogs: "app/logs",
+  windowMinimize: "window/minimize",
+  windowMaximizeToggle: "window/maximize-toggle",
+  windowClose: "window/close",
+  openExternal: "window/open-external",
+  installerStatus: "installer/status",
+  installerStart: "installer/start",
+  installerRetry: "installer/retry",
+  installerTrace: "installer/trace",
+  installerContextChanged: "installer/context-changed"
+} as const;

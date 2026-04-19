@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node", "electron"]
+  },
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/runtime-sdk" },
+    { "path": "../../packages/installer-sdk" }
+  ],
+  "include": ["src/**/*.ts"]
+}

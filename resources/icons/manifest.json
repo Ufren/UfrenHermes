@@ -1,0 +1,98 @@
+﻿{
+    "sources":  [
+                    "source/icon-dark.svg",
+                    "source/icon-light.svg"
+                ],
+    "variants":  [
+                     {
+                         "file":  "variants/icon-dark-16.png",
+                         "size":  16,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-24.png",
+                         "size":  24,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-32.png",
+                         "size":  32,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-48.png",
+                         "size":  48,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-64.png",
+                         "size":  64,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-128.png",
+                         "size":  128,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-256.png",
+                         "size":  256,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-dark-512.png",
+                         "size":  512,
+                         "theme":  "dark"
+                     },
+                     {
+                         "file":  "variants/icon-light-16.png",
+                         "size":  16,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-24.png",
+                         "size":  24,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-32.png",
+                         "size":  32,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-48.png",
+                         "size":  48,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-64.png",
+                         "size":  64,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-128.png",
+                         "size":  128,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-256.png",
+                         "size":  256,
+                         "theme":  "light"
+                     },
+                     {
+                         "file":  "variants/icon-light-512.png",
+                         "size":  512,
+                         "theme":  "light"
+                     }
+                 ],
+    "installerAssets":  [
+                            "installer/installer-sidebar.bmp",
+                            "installer/uninstaller-sidebar.bmp",
+                            "installer/installer-header.bmp"
+                        ],
+    "generatedAt":  "2026-04-19T12:08:42.4997965+08:00",
+    "defaultIcon":  {
+                        "png":  "icon.png",
+                        "ico":  "icon.ico"
+                    }
+}

@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/shared" },
+    { "path": "./packages/runtime-sdk" },
+    { "path": "./packages/installer-sdk" },
+    { "path": "./apps/electron-main" },
+    { "path": "./apps/renderer" }
+  ]
+}

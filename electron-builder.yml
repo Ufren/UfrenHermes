@@ -1,0 +1,102 @@
+appId: com.ufren.hermes.desktop
+productName: Ufren Hermes Desktop
+executableName: UfrenHermesDesktop
+
+directories:
+  output: release
+  buildResources: resources
+
+artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
+
+asar: true
+asarUnpack:
+  - resources/**/*
+
+files:
+  - package.json
+  - apps/electron-main/dist/**/*
+  - apps/renderer/dist/**/*
+  - packages/shared/dist/**/*
+  - packages/runtime-sdk/dist/**/*
+  - packages/installer-sdk/dist/**/*
+  - node_modules/@ufren/**/*
+  - node_modules/zod/**/*
+  - "!**/*.tsbuildinfo"
+  - "!**/*.map"
+  - "!**/src/**"
+  - "!**/dist/**/*.test.js"
+  - "!**/dist/**/*.test.d.ts"
+  - "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}"
+
+extraResources:
+  - from: resources/powershell
+    to: powershell
+    filter:
+      - "**/*"
+  - from: resources/wsl
+    to: wsl
+    filter:
+      - "**/*"
+  - from: ../hermes-agent
+    to: hermes-agent
+    filter:
+      - "**/*"
+      - "!**/.github/**"
+      - "!**/.git/**"
+      - "!**/.plans/**"
+      - "!**/plans/**"
+      - "!**/.venv/**"
+      - "!**/__pycache__/**"
+      - "!**/.pytest_cache/**"
+      - "!**/.mypy_cache/**"
+      - "!**/.ruff_cache/**"
+      - "!**/tests/**"
+      - "!**/website/**"
+      - "!**/docs/**"
+      - "!**/landingpage/**"
+      - "!**/packaging/**"
+      - "!**/nix/**"
+      - "!**/environments/**"
+      - "!**/datagen-config-examples/**"
+      - "!**/.DS_Store"
+      - "!**/*.pyc"
+      - "!**/*.pyo"
+      - "!**/*.log"
+
+extraMetadata:
+  main: apps/electron-main/dist/main.js
+
+win:
+  icon: resources/icons/icon.ico
+  legalTrademarks: "Ufren Hermes"
+  artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  publisherName: Ufren
+  verifyUpdateCodeSignature: false
+
+nsis:
+  installerIcon: resources/icons/icon.ico
+  uninstallerIcon: resources/icons/icon.ico
+  installerHeaderIcon: resources/icons/icon.ico
+  installerHeader: resources/icons/installer/installer-header.bmp
+  installerSidebar: resources/icons/installer/installer-sidebar.bmp
+  uninstallerSidebar: resources/icons/installer/uninstaller-sidebar.bmp
+  oneClick: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Ufren Hermes Desktop
+  uninstallDisplayName: Ufren Hermes Desktop
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  perMachine: false
+
+portable:
+  artifactName: "${productName}-${version}-${os}-${arch}-portable.${ext}"

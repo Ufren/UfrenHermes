@@ -1,0 +1,17 @@
+{
+    "name":  "@ufren/renderer",
+    "version":  "0.1.0",
+    "private":  true,
+    "type":  "module",
+    "scripts":  {
+                    "dev":  "vite",
+                    "build":  "vite build",
+                    "lint":  "eslint src --ext .ts,.tsx --max-warnings 0",
+                    "typecheck":  "tsc -b --pretty false"
+                },
+    "dependencies":  {
+                         "@ufren/shared":  "workspace:*",
+                         "react":  "^19.1.0",
+                         "react-dom":  "^19.1.0"
+                     }
+}

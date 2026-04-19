@@ -1,0 +1,23 @@
+{
+    "name":  "@ufren/electron-main",
+    "version":  "0.1.0",
+    "private":  true,
+    "type":  "module",
+    "main":  "dist/main.js",
+    "scripts":  {
+                    "dev":  "concurrently -k \"tsc -b -w\" \"esbuild src/preload.ts --bundle --platform=node --external:electron --format=cjs --outfile=dist/preload.js --watch\" \"wait-on file:dist/main.js file:dist/preload.js \u0026\u0026 electron .\"",
+                    "build":  "tsc -b \u0026\u0026 pnpm run build:preload",
+                    "build:preload":  "esbuild src/preload.ts --bundle --platform=node --external:electron --format=cjs --outfile=dist/preload.js",
+                    "lint":  "eslint src --ext .ts --max-warnings 0",
+                    "typecheck":  "tsc -b --pretty false",
+                    "test":  "npm run build \u0026\u0026 node --test dist/**/*.test.js"
+                },
+    "dependencies":  {
+                         "@ufren/installer-sdk":  "workspace:*",
+                         "@ufren/runtime-sdk":  "workspace:*",
+                         "@ufren/shared":  "workspace:*"
+                     },
+    "devDependencies":  {
+                            "esbuild":  "^0.20.1"
+                        }
+}

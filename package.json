@@ -1,0 +1,69 @@
+{
+    "name":  "ufren-hermes-desktop",
+    "version":  "0.1.0",
+    "private":  true,
+    "description":  "Windows desktop container for Hermes Agent runtime on WSL2",
+    "author":  "Ufren Team",
+    "license":  "UNLICENSED",
+    "workspaces":  [
+                       "apps/*",
+                       "packages/*"
+                   ],
+    "scripts":  {
+                    "clean":  "rimraf release",
+                    "dev":  "concurrently -k \"pnpm run dev:renderer\" \"pnpm run dev:electron\"",
+                    "dev:renderer":  "pnpm run -F @ufren/renderer dev",
+                    "dev:electron":  "wait-on tcp:5181 \u0026\u0026 pnpm run -F @ufren/electron-main dev",
+                    "build":  "pnpm run build:packages \u0026\u0026 pnpm run build:apps",
+                    "build:packages":  "pnpm run -F @ufren/shared build \u0026\u0026 pnpm run -F @ufren/runtime-sdk build \u0026\u0026 pnpm run -F @ufren/installer-sdk build",
+                    "build:apps":  "pnpm run -F @ufren/renderer build \u0026\u0026 pnpm run -F @ufren/electron-main build",
+                    "lint":  "eslint . --ext .ts,.tsx,.mts,.cts --max-warnings 0",
+                    "typecheck":  "tsc -b tsconfig.build.json",
+                    "test":  "pnpm run -F @ufren/runtime-sdk test \u0026\u0026 pnpm run -F @ufren/installer-sdk test \u0026\u0026 pnpm run -F @ufren/electron-main test",
+                    "release:verify":  "pnpm run lint \u0026\u0026 pnpm run typecheck \u0026\u0026 pnpm run test",
+                    "release:prepare":  "pnpm run clean \u0026\u0026 pnpm run assets:icons \u0026\u0026 pnpm run release:verify \u0026\u0026 pnpm run build \u0026\u0026 pnpm run assets:hermes-dashboard",
+                    "assets:icons":  "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/generate-icons.ps1",
+                    "assets:hermes-dashboard":  "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/ensure-hermes-dashboard-assets.ps1",
+                    "assets:icons:brand":  "pnpm run assets:icons",
+                    "package:dir":  "pnpm run release:prepare \u0026\u0026 electron-builder --config electron-builder.yml --dir",
+                    "package:win":  "pnpm run release:prepare \u0026\u0026 electron-builder --config electron-builder.yml --win nsis",
+                    "package:win:x64":  "pnpm run release:prepare \u0026\u0026 electron-builder --config electron-builder.yml --win nsis --x64",
+                    "package:win:portable":  "pnpm run release:prepare \u0026\u0026 electron-builder --config electron-builder.yml --win portable --x64",
+                    "package:win:ci":  "pnpm run release:prepare \u0026\u0026 electron-builder --config electron-builder.yml --win nsis --x64 --publish never"
+                },
+    "engines":  {
+                    "node":  "\u003e=20.11.0"
+                },
+    "devDependencies":  {
+                            "@eslint/js":  "^9.24.0",
+                            "@types/node":  "^22.14.1",
+                            "@types/react":  "^19.1.2",
+                            "@types/react-dom":  "^19.1.2",
+                            "@typescript-eslint/eslint-plugin":  "^8.29.1",
+                            "@typescript-eslint/parser":  "^8.29.1",
+                            "@vitejs/plugin-react":  "^4.3.4",
+                            "concurrently":  "^9.1.2",
+                            "electron":  "^35.1.2",
+                            "electron-builder":  "^24.13.3",
+                            "eslint":  "^9.24.0",
+                            "eslint-config-prettier":  "^10.1.2",
+                            "eslint-import-resolver-typescript":  "^4.3.5",
+                            "eslint-plugin-import":  "^2.31.0",
+                            "eslint-plugin-react-hooks":  "^5.2.0",
+                            "eslint-plugin-react-refresh":  "^0.4.19",
+                            "globals":  "^16.0.0",
+                            "prettier":  "^3.5.3",
+                            "rimraf":  "^6.0.1",
+                            "tsx":  "^4.19.3",
+                            "typescript":  "^5.8.3",
+                            "vite":  "^6.3.1",
+                            "wait-on":  "^8.0.3"
+                        },
+    "pnpm":  {
+                 "onlyBuiltDependencies":  [
+                                               "electron",
+                                               "esbuild",
+                                               "unrs-resolver"
+                                           ]
+             }
+}
