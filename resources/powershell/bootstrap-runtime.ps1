@@ -147,10 +147,10 @@ if ($ResolvedRuntimeRoot.StartsWith("~/")) {
     $ResolvedRuntimeRoot = "`$HOME/" + $ResolvedRuntimeRoot.Substring(2)
 }
 
-# Generate a single robust bash script to run over stdin
-# Note: Variables like $ResolvedRuntimeRoot are evaluated by PowerShell here.
-# Escaped variables like `$UFREN_SOURCE_WIN` are evaluated by Bash inside WSL.
-$EnsureDependenciesBashCommand = @"
+# Generate bash scripts to run over stdin.
+# Keep them as literal templates so Bash syntax like $(...) and ${...}
+# is not pre-evaluated by PowerShell before entering WSL.
+$EnsureDependenciesBashCommand = @'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
@@ -213,10 +213,10 @@ if ! python_runtime_ready; then
 fi
 
 echo "[step] Ubuntu Python runtime dependencies ready"
-"@
+'@
 $EnsureDependenciesBashCommand = $EnsureDependenciesBashCommand -replace "`r`n", "`n"
 
-$BashCommand = @"
+$BashCommand = @'
 set -euo pipefail
 
 python_runtime_ready() {
@@ -234,32 +234,33 @@ python_runtime_ready() {
 }
 
 echo "[step] Preparing runtime directories"
-mkdir -p "$ResolvedRuntimeRoot/scripts" "$ResolvedRuntimeRoot/logs" "$ResolvedRuntimeRoot/state"
+mkdir -p "__UFREN_RUNTIME_ROOT__/scripts" "__UFREN_RUNTIME_ROOT__/logs" "__UFREN_RUNTIME_ROOT__/state"
 
 echo "[step] Syncing runtime shell scripts"
-cp -f "`$UFREN_SOURCE_WIN"/*.sh "$ResolvedRuntimeRoot/scripts/"
-chmod +x "$ResolvedRuntimeRoot/scripts/"*.sh
+cp -f "$UFREN_SOURCE_WIN"/*.sh "__UFREN_RUNTIME_ROOT__/scripts/"
+chmod +x "__UFREN_RUNTIME_ROOT__/scripts/"*.sh
 
 echo "[step] Syncing hermes-agent sources"
-rm -rf "$ResolvedRuntimeRoot/hermes-agent"
-mkdir -p "$ResolvedRuntimeRoot/hermes-agent"
-cp -a "`$UFREN_AGENT_WIN"/. "$ResolvedRuntimeRoot/hermes-agent/"
+rm -rf "__UFREN_RUNTIME_ROOT__/hermes-agent"
+mkdir -p "__UFREN_RUNTIME_ROOT__/hermes-agent"
+cp -a "$UFREN_AGENT_WIN"/. "__UFREN_RUNTIME_ROOT__/hermes-agent/"
 
 if ! python_runtime_ready; then
   echo 'python3 and python3-venv could not be provisioned automatically in target distro'
   exit 1
 fi
 echo "[step] Creating Python virtual environment"
-rm -rf "$ResolvedRuntimeRoot/.venv"
-python3 -m venv "$ResolvedRuntimeRoot/.venv"
+rm -rf "__UFREN_RUNTIME_ROOT__/.venv"
+python3 -m venv "__UFREN_RUNTIME_ROOT__/.venv"
 echo "[step] Upgrading Python packaging tools"
-"$ResolvedRuntimeRoot/.venv/bin/python" -m pip install --disable-pip-version-check --no-input --upgrade pip setuptools wheel
+"__UFREN_RUNTIME_ROOT__/.venv/bin/python" -m pip install --disable-pip-version-check --no-input --upgrade pip setuptools wheel
 echo "[step] Installing hermes-agent with dashboard dependencies into the virtual environment"
-"$ResolvedRuntimeRoot/.venv/bin/python" -m pip install --disable-pip-version-check --no-input --upgrade "$ResolvedRuntimeRoot/hermes-agent[web]"
+"__UFREN_RUNTIME_ROOT__/.venv/bin/python" -m pip install --disable-pip-version-check --no-input --upgrade "__UFREN_RUNTIME_ROOT__/hermes-agent[web]"
 
 echo "[step] Verifying hermes CLI"
-"$ResolvedRuntimeRoot/.venv/bin/hermes" --help >/dev/null
-"@
+"__UFREN_RUNTIME_ROOT__/.venv/bin/hermes" --help >/dev/null
+'@
+$BashCommand = $BashCommand.Replace("__UFREN_RUNTIME_ROOT__", $ResolvedRuntimeRoot)
 $BashCommand = $BashCommand -replace "`r`n", "`n"
 
 # Pipe the script directly to bash inside WSL. This avoids Windows command line

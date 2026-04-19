@@ -176,7 +176,7 @@ npm run test
 
 ## Hermes Agent 运行机制
 
-- 打包阶段：`electron-builder` 将上级目录 `../hermes-agent` 作为 `extraResources/hermes-agent` 打入安装包。
+- 打包阶段：先强制重建 `../hermes-agent/web` 的 Dashboard 前端产物，再由 `electron-builder` 将上级目录 `../hermes-agent` 作为 `extraResources/hermes-agent` 打入安装包。
 - 安装阶段：`bootstrap-runtime.ps1` 将该只读资源同步到 WSL 的 `$RUNTIME_DIR/hermes-agent`。
 - 依赖准备：在 WSL 中创建 `$RUNTIME_DIR/.venv`，并执行 `pip install $RUNTIME_DIR/hermes-agent`。
 - 启动阶段：`start-hermes.sh` 强制使用 `$RUNTIME_DIR/.venv/bin/hermes` 启动，避免依赖系统全局 Python 环境。
