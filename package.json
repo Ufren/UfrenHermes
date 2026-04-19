@@ -34,6 +34,11 @@
     "engines":  {
                     "node":  "\u003e=20.11.0"
                 },
+    "dependencies":  {
+                         "@ufren/installer-sdk":  "workspace:*",
+                         "@ufren/runtime-sdk":  "workspace:*",
+                         "@ufren/shared":  "workspace:*"
+                     },
     "devDependencies":  {
                             "@eslint/js":  "^9.24.0",
                             "@types/node":  "^22.14.1",

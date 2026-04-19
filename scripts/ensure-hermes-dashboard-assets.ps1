@@ -12,11 +12,6 @@ function Write-AssetLog {
 
 $webDistPath = Join-Path $HermesAgentPath "hermes_cli\web_dist"
 $frontendIndexPath = Join-Path $webDistPath "index.html"
-if (Test-Path -LiteralPath $frontendIndexPath) {
-    Write-AssetLog "Dashboard frontend assets already present"
-    exit 0
-}
-
 $webSourcePath = Join-Path $HermesAgentPath "web"
 $packageJsonPath = Join-Path $webSourcePath "package.json"
 $packageLockPath = Join-Path $webSourcePath "package-lock.json"
@@ -29,7 +24,12 @@ if ($null -eq $npmCommand) {
     throw "$BrandPrefix Dashboard frontend assets are missing and npm is not available to build them"
 }
 
-Write-AssetLog "Building dashboard frontend assets for packaging"
+if (Test-Path -LiteralPath $webDistPath) {
+    Write-AssetLog "Removing existing dashboard frontend assets before rebuild"
+    Remove-Item -LiteralPath $webDistPath -Recurse -Force
+}
+
+Write-AssetLog "Rebuilding dashboard frontend assets for packaging"
 Push-Location $webSourcePath
 try {
     if (Test-Path -LiteralPath $packageLockPath) {

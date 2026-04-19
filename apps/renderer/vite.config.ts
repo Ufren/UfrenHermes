@@ -2,7 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 
-export const viteConfig = defineConfig({
+export const viteConfig = defineConfig(({ command }) => ({
+  // Electron loads the production renderer with file:// URLs, so built asset
+  // paths must stay relative while Vite dev server keeps using root-relative paths.
+  base: command === "build" ? "./" : "/",
   plugins: [react()],
   resolve: {
     alias: {
@@ -18,6 +21,6 @@ export const viteConfig = defineConfig({
     outDir: "dist",
     sourcemap: true
   }
-});
+}));
 
 export default viteConfig;

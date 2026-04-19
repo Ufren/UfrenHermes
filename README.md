@@ -1,188 +1,197 @@
 # Ufren Hermes Desktop
 
-Windows 桌面容器，用于在 Electron UI 中管理并运行 Hermes Agent（运行时落在 WSL2 环境）。
+[中文](./README.md) | [English](./README.en.md) | [日本語](./README.ja.md)
 
-## 产品简介
+Windows 桌面客户端，用于在 Electron UI 中安装、启动、管理并使用运行在 WSL2 中的 Hermes Agent。
 
-`ufren-hermes-desktop` 提供以下能力：
+## 当前状态
 
-- 在 Windows 桌面上提供 Hermes 的统一控制面板（Electron + React）。
-- 通过 WSL2 承载运行时，减少宿主机环境差异带来的问题。
-- 提供安装器流程：检查 WSL、检查/安装发行版、bootstrap runtime。
-- 提供安装过程可观测能力：状态变更、错误分类、执行 trace、失败后重试。
+`ufren-hermes-desktop` 当前已经覆盖以下链路：
 
-> 设计原则：`hermes-agent` 目录保持为上游依赖，不在本项目内直接改动。
+- 桌面端统一入口：Installer、Runtime、Dashboard、Chat 共用一个 Electron + React 客户端。
+- WSL2 运行时承载：将 Hermes Agent 实际运行环境放到 WSL 中，降低宿主机差异。
+- 一键安装流程：检查 WSL、检查或安装发行版、bootstrap runtime、同步脚本和 hermes-agent。
+- 运行可观测性：提供安装状态、错误分类、执行 trace、失败后重试。
+- 交付打包：生成 NSIS 安装包与 portable 包，并将运行所需资源打入安装产物。
+
+## 最近同步的打包保证
+
+当前文档已经与最新打包行为对齐，以下保证已生效：
+
+- `hermes-agent` Dashboard 前端在每次重新打包前都会强制重建，避免旧 `web_dist` 混入新包。
+- Electron 主进程需要的 `@ufren/shared`、`@ufren/runtime-sdk`、`@ufren/installer-sdk` 会作为运行时依赖一并入包，避免安装后出现 `ERR_MODULE_NOT_FOUND`。
+- Renderer 生产构建使用相对资源路径，避免安装后因 `file://` 场景下 `/assets/...` 解析错误而出现深蓝白板。
+- `bootstrap-runtime.ps1` 现在将 Bash 脚本以字面量模板传入 WSL，避免 PowerShell 预执行 `$(mktemp -d)` 这类 Bash 语法。
+- 打包产物会保留 `hermes_cli/web_dist`，同时排除 `../hermes-agent/web` 源码、`package-lock.json` 等开发期文件。
+
+> 设计原则：上游 `../hermes-agent` 目录保持为外部依赖源，本项目不直接承载其业务开发。
 
 ## 项目结构
 
 ```text
 ufren-hermes-desktop/
   apps/
-    electron-main/   # Electron 主进程 + preload + IPC handlers
+    electron-main/   # Electron 主进程、preload、IPC handlers
     renderer/        # React 前端
   packages/
     shared/          # IPC 通道、DTO、Zod schema、共享类型
-    runtime-sdk/     # 进程调用、WSL/运行时相关封装
+    runtime-sdk/     # 进程调用、WSL/运行时封装
     installer-sdk/   # 安装状态机与编排器
+  resources/
+    powershell/      # Windows 侧 bootstrap/sync 脚本
+    wsl/             # WSL 内部启停/状态脚本
 ```
 
 ## 环境要求
 
-- Windows 10/11（推荐 Windows 11）
-- Node.js >= 20.11.0
-- npm >= 10
-- PowerShell 5+（系统默认）
-- 建议开启虚拟化能力（BIOS）
+- Windows 10/11，推荐 Windows 11
+- Node.js `>= 20.11.0`
+- `pnpm`
+- `npm`，用于 `hermes-agent/web` 前端重建
+- PowerShell 5+
+- 建议开启 BIOS 虚拟化能力
 
 可选环境变量：
 
-- `UFREN_WSL_DISTRO`：指定目标发行版（默认自动选择，兜底 `Ubuntu`）
+- `UFREN_WSL_DISTRO`：指定目标发行版，默认自动选择，兜底为 `Ubuntu`
 - `UFREN_RUNTIME_ROOT`：指定 runtime 在 WSL 中的安装目录
-- `UFREN_BOOTSTRAP_SCRIPT`：自定义 bootstrap 脚本路径
-- `UFREN_HERMES_AGENT_PATH`：覆盖 hermes-agent Windows 源目录（默认自动解析）
+- `UFREN_BOOTSTRAP_SCRIPT`：覆盖默认 bootstrap 脚本路径
+- `UFREN_HERMES_AGENT_PATH`：覆盖 `hermes-agent` 的 Windows 源目录
 
 ## 安装依赖
 
 在项目根目录执行：
 
 ```bash
-npm install
+pnpm install
 ```
 
 ## 开发模式
 
-启动完整开发链路（Renderer + Electron）：
+启动完整开发链路：
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 该命令会并行启动：
 
-- `npm run dev:renderer`
-- `npm run dev:electron`
+- `pnpm run dev:renderer`
+- `pnpm run dev:electron`
 
-## 构建方式
+开发态通过 Vite dev server 加载 Renderer；生产打包时则加载本地构建产物。
+
+## 构建
 
 全量构建：
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 分步构建：
 
 ```bash
-npm run build:packages
-npm run build:apps
+pnpm run build:packages
+pnpm run build:apps
 ```
 
-## 发布构建
-
-当前仓库已具备发布前强校验 + 打包链路，可直接使用以下命令：
+质量校验：
 
 ```bash
-npm run release:prepare
-npm run package:win
+pnpm run lint
+pnpm run typecheck
+pnpm run test
 ```
 
 说明：
 
-- `assets:icons`：生成并更新品牌图标资源（深浅两套、多尺寸 PNG、默认 `icon.ico` / `icon.png`、NSIS 安装器 BMP、`manifest.json`）。
-- `assets:icons:brand`：`assets:icons` 的别名命令，便于在 CI/CD 或设计协作流程中使用。
-- `release:prepare` = `clean + lint + typecheck + test + build`。
-- `package:dir`：生成未安装目录（用于验证包内容）。
-- `package:win`：生成 NSIS 安装包 + portable 包（x64）。
-- `package:win:x64`：仅生成 NSIS x64 安装包。
-- `package:win:portable`：仅生成 portable x64 包。
-- `package:win:ci`：CI 场景打包（禁用发布，仅生成 NSIS x64 产物）。
-- `apps/electron-main` 的主进程产物位于 `apps/electron-main/dist`。
-- `apps/renderer` 的前端产物位于 `apps/renderer/dist`。
-- 发布产物输出目录为 `release/`。
+- `test` 当前覆盖 `runtime-sdk`、`installer-sdk`、`electron-main`
+- `electron-main` 测试会先构建再运行 `node --test dist/**/*.test.js`
 
-建议的发布前检查清单：
+## 发布与打包
 
-1. 在干净工作区执行完整校验（lint/typecheck/test/build）。
-2. 确认安装器关键路径可用（WSL 检查、发行版检查、bootstrap、retry、trace）。
-3. 验证至少两类宿主机场景：全新机器、已有 WSL2 机器。
-4. 确认 `resources/powershell/bootstrap-runtime.ps1` 已包含在发布包策略中。
-
-> 备注：若后续接入 `electron-builder` 或其他打包器，可在此基础上新增 `package`/`release` 脚本并固化产物目录规范。
-
-## 图标资产说明
-
-执行 `npm run assets:icons` 后，图标资产输出如下：
-
-- `resources/icons/icon.ico`：Windows 安装包与应用主图标（默认）。
-- `resources/icons/icon.png`：默认 256x256 PNG 图标（从 dark 主题导出）。
-- `resources/icons/source/icon-dark.svg`：可编辑 dark 主题源文件。
-- `resources/icons/source/icon-light.svg`：可编辑 light 主题源文件。
-- `resources/icons/variants/icon-<theme>-<size>.png`：导出的多尺寸 PNG（`16/24/32/48/64/128/256/512`）。
-- `resources/icons/installer/installer-header.bmp`：NSIS 安装器顶部品牌图。
-- `resources/icons/installer/installer-sidebar.bmp`：NSIS 安装器侧边品牌图。
-- `resources/icons/installer/uninstaller-sidebar.bmp`：NSIS 卸载器侧边品牌图。
-- `resources/icons/manifest.json`：图标导出清单，便于资产追踪与自动化流程消费。
-
-## 品牌化覆盖范围
-
-当前版本已覆盖以下品牌触点：
-
-- 应用品牌元数据：`appId/productName/executableName/publisherName`。
-- 安装器品牌化：NSIS 安装/卸载图标、header 图、sidebar 图。
-- 桌面端界面：统一品牌色板、品牌头图文案、Installer/Runtime 面板样式。
-- 日志可观测性：主进程日志带 `scope=ufren-hermes-desktop` 便于过滤与聚合。
-
-## 质量校验
+发布前准备：
 
 ```bash
-npm run lint
-npm run typecheck
-npm run test
+pnpm run release:prepare
+```
+
+常用打包命令：
+
+```bash
+pnpm run package:dir
+pnpm run package:win
+pnpm run package:win:x64
+pnpm run package:win:portable
+pnpm run package:win:ci
 ```
 
 说明：
 
-- `test` 当前覆盖 `runtime-sdk`、`installer-sdk`、`electron-main`。
-- `electron-main` 测试会先 `build` 再运行 `node --test dist/**/*.test.js`。
+- `release:prepare` = `clean + assets:icons + release:verify + build + assets:hermes-dashboard`
+- `assets:icons`：生成品牌图标、NSIS 安装器图片和 `manifest.json`
+- `assets:hermes-dashboard`：强制重建 `../hermes-agent/web` 并刷新 `hermes_cli/web_dist`
+- `package:dir`：生成未安装目录，适合检查包内容
+- `package:win`：按当前 `electron-builder.yml` 产出 Windows 目标
+- `package:win:x64`：仅生成 NSIS x64 安装包
+- `package:win:portable`：仅生成 portable x64 包
+- `package:win:ci`：CI 场景打包，禁用发布
+- 默认产物输出目录为 `release/`
 
-## 安装器行为说明
+## 打包内容策略
+
+`electron-builder.yml` 当前策略如下：
+
+- 主应用文件包含 `apps/electron-main/dist`、`apps/renderer/dist`、`packages/*/dist`
+- 运行时 `node_modules` 中显式包含 `@ufren/*` 与 `zod`
+- `resources/powershell` 与 `resources/wsl` 作为 `extraResources` 进入安装包
+- `../hermes-agent` 作为 `extraResources/hermes-agent` 进入安装包
+- 会排除 `../hermes-agent/web`、`node_modules`、测试目录、缓存目录和常见开发期文件
+
+## 安装器行为
 
 安装器主流程：
 
 1. 检查 WSL 可用性
-2. 确定目标发行版（优先默认发行版）
-3. 校验/安装发行版
+2. 确定目标发行版
+3. 校验或安装发行版
 4. 必要时将发行版升级到 WSL2
-5. 执行 runtime bootstrap
+5. 在 WSL 中 bootstrap runtime
 
 关键特性：
 
-- 并发保护：同一时间仅允许一个安装流程。
-- 错误分类：返回结构化 issue（是否可重试、是否需要管理员权限、是否需要重启）。
-- 实时状态：主进程推送 `installer/context-changed`。
-- 执行追踪：可读取每条命令的耗时、退出码与输出摘要。
-- 失败重试：支持 `installer/retry`。
-- hermes-agent 打包：安装包内置只读 `hermes-agent` 资源并在安装时同步到 WSL runtime。
-- Python 隔离：安装阶段创建 `runtime/.venv`，并在该 venv 内安装 `hermes-agent`。
+- 并发保护：同一时间只允许一个安装流程
+- 错误分类：返回结构化 issue，包含是否可重试、是否需要管理员权限、是否需要重启
+- 实时状态：主进程通过 IPC 推送 `installer/context-changed`
+- 执行追踪：记录命令、参数、退出码、耗时与输出摘要
+- 失败重试：支持 `installer/retry`
+- Python 隔离：在 `$RUNTIME_DIR/.venv` 中安装 hermes-agent 与依赖
 
-## 宿主机已有 WSL/WSL2 场景
+## Hermes Agent 同步机制
 
-如果宿主机已存在 WSL 环境：
+- 打包阶段：先强制重建 `../hermes-agent/web`，再把 `../hermes-agent` 作为只读资源打入安装包
+- 安装阶段：`bootstrap-runtime.ps1` 将包内 `hermes-agent` 同步到 WSL 的 `$RUNTIME_DIR/hermes-agent`
+- 依赖准备：在 WSL 中创建 `$RUNTIME_DIR/.venv`，并执行 `pip install "$RUNTIME_DIR/hermes-agent[web]"`
+- 启动阶段：`start-hermes.sh` 强制使用 `$RUNTIME_DIR/.venv/bin/hermes`
 
-- 已可用的 WSL 不会重复安装。
-- 已存在目标发行版时不会重复安装发行版。
-- 若目标发行版为 WSL1，会自动尝试升级到 WSL2。
-- 最终仍会执行 bootstrap，以确保 runtime 一致性。
+## 图标资产
 
-## Hermes Agent 运行机制
+执行 `pnpm run assets:icons` 后会生成：
 
-- 打包阶段：`electron-builder` 将上级目录 `../hermes-agent` 作为 `extraResources/hermes-agent` 打入安装包。
-- 安装阶段：`bootstrap-runtime.ps1` 将该只读资源同步到 WSL 的 `$RUNTIME_DIR/hermes-agent`。
-- 依赖准备：在 WSL 中创建 `$RUNTIME_DIR/.venv`，并执行 `pip install $RUNTIME_DIR/hermes-agent`。
-- 启动阶段：`start-hermes.sh` 强制使用 `$RUNTIME_DIR/.venv/bin/hermes` 启动，避免依赖系统全局 Python 环境。
+- `resources/icons/icon.ico`
+- `resources/icons/icon.png`
+- `resources/icons/source/icon-dark.svg`
+- `resources/icons/source/icon-light.svg`
+- `resources/icons/variants/icon-<theme>-<size>.png`
+- `resources/icons/installer/installer-header.bmp`
+- `resources/icons/installer/installer-sidebar.bmp`
+- `resources/icons/installer/uninstaller-sidebar.bmp`
+- `resources/icons/manifest.json`
 
 ## 常见问题
 
-- 权限不足：请使用管理员权限启动应用后重试。
-- 提示需要重启：重启 Windows 后再次执行安装流程。
-- bootstrap 脚本不存在：检查 `resources/powershell/bootstrap-runtime.ps1` 是否被正确打包，或通过 `UFREN_BOOTSTRAP_SCRIPT` 指定路径。
+- 权限不足：请以管理员权限启动应用后重试
+- 需要重启：按提示重启 Windows 后再次执行安装流程
+- bootstrap 脚本找不到：检查 `resources/powershell/bootstrap-runtime.ps1` 是否已入包，或通过 `UFREN_BOOTSTRAP_SCRIPT` 覆盖
+- 安装后白板：请确认使用的是最新安装包，旧版本曾存在生产资源路径错误
