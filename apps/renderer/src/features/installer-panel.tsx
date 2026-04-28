@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 
 import type { InstallerContextDto, InstallerIssue, InstallerTraceEntryDto } from "@ufren/shared";
 import { ufrenBrand } from "@ufren/shared";
-import { getBooleanLabel, getEmptyLabel, getInstallerCopy, getStatusLabel, type AppLocale } from "../app/ui-copy.js";
+import { getBooleanLabel, getEmptyLabel, getInstallerCopy, getStatusLabel, type AppLocale } from "../app/i18n/index.js";
 
 type ActionState = "idle" | "loading" | "error";
 
@@ -54,6 +54,11 @@ export function InstallerPanel({ locale, onSnapshotChange }: InstallerPanelProps
   const timelineEntries = useMemo(() => {
     return traceEntries.slice(-8).reverse();
   }, [traceEntries]);
+  const surfaceCopy = copy.surface;
+  const installerStatusLabel = useMemo(() => getStatusLabel(context.state, locale), [context.state, locale]);
+  const retryableLabel = useMemo(() => getBooleanLabel(issue?.retryable, locale), [issue?.retryable, locale]);
+  const adminLabel = useMemo(() => getBooleanLabel(issue?.requiresAdmin, locale), [issue?.requiresAdmin, locale]);
+  const rebootLabel = useMemo(() => getBooleanLabel(issue?.requiresReboot, locale), [issue?.requiresReboot, locale]);
 
   const refresh = useCallback(async () => {
     try {
@@ -168,80 +173,151 @@ export function InstallerPanel({ locale, onSnapshotChange }: InstallerPanelProps
   }
 
   return (
-    <section className="panel-card">
-      <header className="panel-header">
-        <div>
+    <section className="installer-surface">
+      <section className={`panel-card page-header-card installer-page-header${context.state === "ready" ? " page-header-card-ready" : ""}`}>
+        <div className="page-header-shell">
+          <div className="page-header-copy">
+            <span className="console-section-kicker">{surfaceCopy.overviewKicker}</span>
+            <span className="page-header-eyebrow">{surfaceCopy.overviewEyebrow}</span>
             <h3 className="panel-title">{copy.title}</h3>
             <p className="panel-subtitle">{copy.subtitle}</p>
-        </div>
-        <span className={`status-pill status-${context.state}`}>{getStatusLabel(context.state, locale)}</span>
-      </header>
+          </div>
 
-      <section className="panel-banner panel-banner-installer">
-        <div className="panel-banner-copy">
-          <span className="panel-banner-kicker">{copy.bannerKicker}</span>
-          <strong className="panel-banner-title">{copy.bannerTitle}</strong>
+          <div className="page-header-actions panel-actions action-ribbon">
+            <button type="button" disabled={!canInstall} onClick={() => void handleInstall()} className="btn btn-primary">
+              {copy.buttons.install}
+            </button>
+            <button type="button" disabled={!canRetry} onClick={() => void handleRetry()} className="btn btn-secondary">
+              {copy.buttons.retry}
+            </button>
+            <button type="button" disabled={isBusy} onClick={() => void refresh()} className="btn btn-ghost">
+              {copy.buttons.refresh}
+            </button>
+          </div>
         </div>
-        <div className="panel-banner-metrics">
-          <div className="panel-banner-metric">
-            <span className="panel-banner-metric-label">{copy.metrics.state}</span>
-            <strong className="panel-banner-metric-value">{getStatusLabel(context.state, locale)}</strong>
+
+        {message ? (
+          <div className={`feedback ${messageTone === "error" ? "feedback-error" : "feedback-success"}`}>{message}</div>
+        ) : (
+          <div className={`summary-note ${issue ? "summary-note-error" : "summary-note-neutral"} page-header-summary`}>
+            <span className="summary-note-label">{copy.snapshotTitle}</span>
+            <div className="summary-note-message">{issue?.suggestion ?? context.lastError ?? copy.snapshotCaption}</div>
           </div>
-          <div className="panel-banner-metric">
-            <span className="panel-banner-metric-label">{copy.metrics.retryable}</span>
-            <strong className="panel-banner-metric-value">{getBooleanLabel(issue?.retryable, locale)}</strong>
+        )}
+
+        <div className="page-header-meta">
+          <div className="page-header-metric">
+            <span className="page-header-metric-label">{copy.metrics.state}</span>
+            <strong className="page-header-metric-value">{installerStatusLabel}</strong>
           </div>
-          <div className="panel-banner-metric">
-            <span className="panel-banner-metric-label">{copy.metrics.admin}</span>
-            <strong className="panel-banner-metric-value">{getBooleanLabel(issue?.requiresAdmin, locale)}</strong>
+          <div className="page-header-metric">
+            <span className="page-header-metric-label">{copy.metrics.retryable}</span>
+            <strong className="page-header-metric-value">{retryableLabel}</strong>
           </div>
+          <div className="page-header-metric">
+            <span className="page-header-metric-label">{surfaceCopy.traceLabel}</span>
+            <strong className="page-header-metric-value">{traceEntries.length}</strong>
+          </div>
+        </div>
+
+        <div className="page-header-support-grid">
+          <div className="page-header-support-card">
+            <div className="page-header-support-copy">
+              <span className="page-header-support-label">{surfaceCopy.issueTitle}</span>
+              <p className="page-header-support-text">{surfaceCopy.issueSubtitle}</p>
+            </div>
+            <section className="kv-grid installer-inline-kv-grid">
+              <div className="kv-item">
+                <span className="kv-label">{copy.fields.issueCode}</span>
+                <span className="kv-value">{issue?.code ?? emptyLabel}</span>
+              </div>
+              <div className="kv-item">
+                <span className="kv-label">{copy.metrics.admin}</span>
+                <span className="kv-value">{adminLabel}</span>
+              </div>
+              <div className="kv-item kv-item-wide">
+                <span className="kv-label">{copy.fields.suggestion}</span>
+                <span className="kv-value">{issue?.suggestion ?? emptyLabel}</span>
+              </div>
+            </section>
+          </div>
+
+          <section className="kv-grid page-header-kv-grid">
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.lastError}</span>
+              <span className="kv-value">{context.lastError ?? emptyLabel}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.requiresReboot}</span>
+              <span className="kv-value">{rebootLabel}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.requiresAdmin}</span>
+              <span className="kv-value">{adminLabel}</span>
+            </div>
+          </section>
         </div>
       </section>
 
-      <section className="content-frame">
-        <div className="content-frame-header">
-          <div className="content-frame-title">{copy.snapshotTitle}</div>
-          <div className="content-frame-caption">{copy.snapshotCaption}</div>
-        </div>
-        <section className="kv-grid">
-        <div className="kv-item">
-          <span className="kv-label">{copy.fields.lastError}</span>
-          <span className="kv-value">{context.lastError ?? emptyLabel}</span>
-        </div>
-        <div className="kv-item">
-          <span className="kv-label">{copy.fields.issueCode}</span>
-          <span className="kv-value">{issue?.code ?? emptyLabel}</span>
-        </div>
-        <div className="kv-item">
-          <span className="kv-label">{copy.fields.retryable}</span>
-          <span className="kv-value">{getBooleanLabel(issue?.retryable, locale)}</span>
-        </div>
-        <div className="kv-item">
-          <span className="kv-label">{copy.fields.requiresAdmin}</span>
-          <span className="kv-value">{getBooleanLabel(issue?.requiresAdmin, locale)}</span>
-        </div>
-        <div className="kv-item">
-          <span className="kv-label">{copy.fields.requiresReboot}</span>
-          <span className="kv-value">{getBooleanLabel(issue?.requiresReboot, locale)}</span>
-        </div>
-        <div className="kv-item kv-item-wide">
-          <span className="kv-label">{copy.fields.suggestion}</span>
-          <span className="kv-value">{issue?.suggestion ?? emptyLabel}</span>
-        </div>
+      <section className="installer-detail-grid">
+        <section className="content-frame installer-snapshot-card">
+          <div className="content-frame-header">
+            <div className="content-frame-title">{copy.snapshotTitle}</div>
+            <div className="content-frame-caption">{copy.snapshotCaption}</div>
+          </div>
+          <section className="kv-grid">
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.lastError}</span>
+              <span className="kv-value">{context.lastError ?? emptyLabel}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.issueCode}</span>
+              <span className="kv-value">{issue?.code ?? emptyLabel}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.retryable}</span>
+              <span className="kv-value">{getBooleanLabel(issue?.retryable, locale)}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.requiresAdmin}</span>
+              <span className="kv-value">{getBooleanLabel(issue?.requiresAdmin, locale)}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.requiresReboot}</span>
+              <span className="kv-value">{getBooleanLabel(issue?.requiresReboot, locale)}</span>
+            </div>
+            <div className="kv-item kv-item-wide">
+              <span className="kv-label">{copy.fields.suggestion}</span>
+              <span className="kv-value">{issue?.suggestion ?? emptyLabel}</span>
+            </div>
+          </section>
+        </section>
+
+        <section className="timeline-card content-frame">
+          <h4 className="timeline-title">{copy.timelineTitle}</h4>
+          {timelineEntries.length === 0 ? (
+            <div className="state-muted">{copy.timelineEmpty}</div>
+          ) : (
+            <ol className="timeline-list">
+              {timelineEntries.map((entry) => (
+                <li key={`${entry.at}-${entry.stage}-${entry.command}`} className="timeline-item">
+                  <div className="timeline-dot" />
+                  <div className="timeline-content">
+                    <div className="timeline-head">
+                      <span className="timeline-stage">{entry.stage}</span>
+                      <span className={entry.exitCode === 0 ? "timeline-exit-ok" : "timeline-exit-error"}>
+                        {copy.exit} {entry.exitCode}
+                      </span>
+                    </div>
+                    <div className="timeline-command">{entry.command} {entry.args.join(" ")}</div>
+                    <div className="timeline-time">{entry.at}</div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
         </section>
       </section>
-
-      <div className="panel-actions action-ribbon">
-        <button type="button" disabled={!canInstall} onClick={() => void handleInstall()} className="btn btn-primary">
-          {copy.buttons.install}
-        </button>
-        <button type="button" disabled={!canRetry} onClick={() => void handleRetry()} className="btn btn-secondary">
-          {copy.buttons.retry}
-        </button>
-        <button type="button" disabled={isBusy} onClick={() => void refresh()} className="btn btn-ghost">
-          {copy.buttons.refresh}
-        </button>
-      </div>
 
       <details className="trace-details content-frame content-frame-muted">
         <summary>{copy.traceTitle(traceEntries.length, ufrenBrand.productName)}</summary>
@@ -262,32 +338,6 @@ export function InstallerPanel({ locale, onSnapshotChange }: InstallerPanelProps
         )}
       </details>
 
-      <section className="timeline-card content-frame">
-        <h4 className="timeline-title">{copy.timelineTitle}</h4>
-        {timelineEntries.length === 0 ? (
-          <div className="state-muted">{copy.timelineEmpty}</div>
-        ) : (
-          <ol className="timeline-list">
-            {timelineEntries.map((entry) => (
-              <li key={`${entry.at}-${entry.stage}-${entry.command}`} className="timeline-item">
-                <div className="timeline-dot" />
-                <div className="timeline-content">
-                  <div className="timeline-head">
-                    <span className="timeline-stage">{entry.stage}</span>
-                    <span className={entry.exitCode === 0 ? "timeline-exit-ok" : "timeline-exit-error"}>
-                      {copy.exit} {entry.exitCode}
-                    </span>
-                  </div>
-                  <div className="timeline-command">{entry.command} {entry.args.join(" ")}</div>
-                  <div className="timeline-time">{entry.at}</div>
-                </div>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      {message ? <div className={`feedback ${messageTone === "error" ? "feedback-error" : "feedback-success"}`}>{message}</div> : null}
       {actionState === "error" ? (
         <div className="error-state">
           <strong className="state-title">{copy.failedTitle(ufrenBrand.productName)}</strong>

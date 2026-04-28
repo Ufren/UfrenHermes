@@ -7,9 +7,10 @@ import {
   getEmptyLabel,
   getPreferredLocale,
   getStatusLabel,
+  getWorkspaceCopy,
   persistLocale,
   type AppLocale
-} from "./ui-copy.js";
+} from "./i18n/index.js";
 import { ChatConsole } from "../features/chat-console.js";
 import { DashboardConsole } from "../features/dashboard-console.js";
 import { InstallerPanel, type InstallerPanelSnapshot } from "../features/installer-panel.js";
@@ -46,54 +47,6 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
-}
-
-function getWorkspaceCopy(locale: AppLocale) {
-  return locale === "zh"
-    ? {
-        title: "把安装、运行、管理台与 Chat 收敛到同一个成熟客户端里。",
-        subtitle: "总览负责判断当前阶段，Dashboard 负责官方管理，Chat 负责日常对话，Installer / Runtime 负责底层运维。",
-        nextTitle: "建议下一步",
-        readyMessage: "运行时、健康探测与官方 dashboard 都已就绪，可以开始通过 Chat 或浏览器内管理台使用 Hermes。",
-        installMessage: "先完成安装器工作流，确保 WSL、运行时文件和 Python 环境已经准备好。",
-        runtimeMessage: "安装已经就绪，下一步建议启动 Hermes runtime 并等待健康检查通过。",
-        dashboardMessage: "建议把官方 dashboard 一并拉起，方便管理账户、模型和环境配置。",
-        headingQuick: "快捷入口",
-        headingProgress: "系统阶段",
-        openDashboard: "打开 Dashboard",
-        openChat: "进入 Chat",
-        openInstaller: "查看安装器",
-        openRuntime: "查看运行时",
-        bridgeReady: "桌面桥接已连接",
-        bridgeMissing: "桌面桥接未连接",
-        stageDone: "已完成",
-        stagePending: "待处理",
-        dashboard: "管理台",
-        chat: "聊天",
-        summary: "服务概览"
-      }
-    : {
-        title: "Bring setup, runtime, dashboard, and chat into one mature desktop client.",
-        subtitle: "Overview decides what needs attention, Dashboard handles official management, Chat handles daily conversation, and Installer / Runtime stay available for low-level operations.",
-        nextTitle: "Recommended Next Step",
-        readyMessage: "Runtime, health checks, and the official dashboard are ready. You can now use Hermes through Chat or the embedded admin console.",
-        installMessage: "Complete the installer workflow first so WSL, runtime files, and the Python environment are ready.",
-        runtimeMessage: "Installation is ready. The next move is to start Hermes runtime and wait for health checks to pass.",
-        dashboardMessage: "Start the official dashboard too so account, model, and environment management stay available.",
-        headingQuick: "Quick Access",
-        headingProgress: "System Stages",
-        openDashboard: "Open Dashboard",
-        openChat: "Open Chat",
-        openInstaller: "Open Installer",
-        openRuntime: "Open Runtime",
-        bridgeReady: "Desktop bridge connected",
-        bridgeMissing: "Desktop bridge unavailable",
-        stageDone: "Done",
-        stagePending: "Pending",
-        dashboard: "Dashboard",
-        chat: "Chat",
-        summary: "Service Summary"
-      };
 }
 
 export function App(): JSX.Element {
@@ -158,6 +111,7 @@ export function App(): JSX.Element {
       : installerReady
         ? "ready"
         : "stopped";
+  const progressValue = `${completedSteps}/3`;
 
   const navItems: { view: AppView; label: string; description: string; icon: string }[] = [
     { view: "workspace", label: copy.nav.workspace.label, description: copy.nav.workspace.description, icon: "OV" },
@@ -188,11 +142,6 @@ export function App(): JSX.Element {
       label: workspaceCopy.dashboard,
       value: dashboardStatusText,
       tone: dashboardReady ? "success" : dashboardHealth ? "warning" : "loading"
-    },
-    {
-      label: copy.statusCards.endpoint,
-      value: runtimeEndpoint,
-      tone: runtimeHealthSignal?.endpoint ? "accent" : "neutral"
     }
   ] as const;
 
@@ -217,32 +166,23 @@ export function App(): JSX.Element {
 
   const workflowSteps = [
     {
-      title: locale === "zh" ? "准备运行环境" : "Prepare Runtime Environment",
+      title: workspaceCopy.steps.prepareTitle,
       status: installerReady,
-      hint:
-        locale === "zh"
-          ? "确保 WSL、运行时脚本、虚拟环境和 Hermes 包都已准备完成。"
-          : "Ensure WSL, runtime scripts, virtual environment, and Hermes packages are ready.",
+      hint: workspaceCopy.steps.prepareHint,
       actionLabel: workspaceCopy.openInstaller,
       action: () => navigate("installer")
     },
     {
-      title: locale === "zh" ? "启动 Hermes 服务" : "Start Hermes Service",
+      title: workspaceCopy.steps.runtimeTitle,
       status: runtimeHealthy,
-      hint:
-        locale === "zh"
-          ? "启动 runtime，并用健康探测确认 API server 已可用。"
-          : "Start runtime and use health checks to confirm the API server is available.",
+      hint: workspaceCopy.steps.runtimeHint,
       actionLabel: workspaceCopy.openRuntime,
       action: () => navigate("runtime")
     },
     {
-      title: locale === "zh" ? "加载官方管理台" : "Load Official Dashboard",
+      title: workspaceCopy.steps.dashboardTitle,
       status: dashboardReady,
-      hint:
-        locale === "zh"
-          ? "在桌面端内嵌 dashboard，统一管理模型、账号和环境配置。"
-          : "Embed the official dashboard to manage models, accounts, and environment settings.",
+      hint: workspaceCopy.steps.dashboardHint,
       actionLabel: workspaceCopy.openDashboard,
       action: () => navigate("dashboard")
     }
@@ -257,6 +197,67 @@ export function App(): JSX.Element {
         : !dashboardReady
           ? workspaceCopy.dashboardMessage
           : workspaceCopy.readyMessage;
+
+  const workspaceQuickCards = [
+    {
+      kicker: workspaceCopy.chat,
+      title: copy.nav.chat.label,
+      description: copy.nav.chat.description,
+      value: runtimeHealthy ? runtimeEndpoint : runtimeStatusText,
+      action: () => navigate("chat")
+    },
+    {
+      kicker: workspaceCopy.dashboard,
+      title: copy.nav.dashboard.label,
+      description: copy.nav.dashboard.description,
+      value: dashboardUrl,
+      action: () => navigate("dashboard")
+    },
+    {
+      kicker: copy.nav.installer.label,
+      title: installerStatusText,
+      description: copy.nav.installer.description,
+      value: installerReady ? workspaceCopy.stageDone : workspaceCopy.stagePending,
+      action: () => navigate("installer")
+    },
+    {
+      kicker: copy.nav.runtime.label,
+      title: runtimeStatusText,
+      description: copy.nav.runtime.description,
+      value: runtimeEndpoint,
+      action: () => navigate("runtime")
+    }
+  ] as const;
+
+  const homeMetrics = [
+    {
+      label: workspaceCopy.progressLabel,
+      value: progressValue
+    },
+    {
+      label: workspaceCopy.endpointLabel,
+      value: runtimeEndpoint
+    },
+    {
+      label: workspaceCopy.dashboard,
+      value: dashboardUrl
+    }
+  ] as const;
+
+  const sidebarSummaryItems = [
+    {
+      label: workspaceCopy.bridgeLabel,
+      value: desktopApiReady ? workspaceCopy.bridgeReady : workspaceCopy.bridgeMissing
+    },
+    {
+      label: copy.statusCards.runtime,
+      value: runtimeStatusText
+    },
+    {
+      label: workspaceCopy.dashboard,
+      value: dashboardStatusText
+    }
+  ] as const;
 
   const runOneClickReadyFlow = async (): Promise<void> => {
     try {
@@ -303,18 +304,13 @@ export function App(): JSX.Element {
         }
         if (attempt === 14) {
           throw new Error(
-            lastDetail ||
-              (locale === "zh"
-                ? "健康检查在重试窗口内未通过。"
-                : "Health check did not pass within the retry window.")
+            lastDetail || workspaceCopy.oneClick.healthTimeout
           );
         }
         await wait(1000);
       }
 
-      setOneClickMessage(
-        locale === "zh" ? "正在启动官方 dashboard..." : "Starting official dashboard..."
-      );
+      setOneClickMessage(workspaceCopy.oneClick.dashboardStarting);
       const dashboardResult = await api.dashboardStart();
       if (!dashboardResult.ok) {
         throw new Error(dashboardResult.message);
@@ -363,65 +359,93 @@ export function App(): JSX.Element {
 
   const renderWorkspace = (): JSX.Element => (
     <section className="workspace-dashboard">
-      <section className="workspace-hero-card">
-        <div className="workspace-hero-copy">
-          <span className="console-section-kicker">{copy.desktopConsole}</span>
-          <h1 className="workspace-hero-title">{workspaceCopy.title}</h1>
-          <p className="workspace-hero-subtitle">{workspaceCopy.subtitle}</p>
-        </div>
-
-        <div className="workspace-hero-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!desktopApiReady || oneClickBusy}
-            onClick={() => void runOneClickReadyFlow()}
-          >
-            {oneClickBusy ? copy.actions.oneClickBusy : copy.actions.oneClickReady}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate("chat")}>
-            {workspaceCopy.openChat}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate("dashboard")}>
-            {workspaceCopy.openDashboard}
-          </button>
-        </div>
-
-        <div className={`summary-note summary-note-${oneClickTone}`}>
-          <span className="summary-note-label">{workspaceCopy.nextTitle}</span>
-          <div className="summary-note-message">{oneClickMessage || nextActionMessage}</div>
-        </div>
-      </section>
-
-      <section className="status-card-grid status-card-grid-five">
-        {statusCards.map((card) => (
-          <div key={card.label} className={`status-card status-card-${card.tone}`}>
-            <span className="status-card-label">{card.label}</span>
-            <strong className="status-card-value">{card.value}</strong>
+      <section className="workspace-home-grid">
+        <article className="panel-card workspace-home-card">
+          <div className="workspace-home-copy">
+            <span className="console-section-kicker">{workspaceCopy.showcaseLabel}</span>
+            <span className="workspace-home-eyebrow">{workspaceCopy.showcaseEyebrow}</span>
+            <h1 className="workspace-home-title">{workspaceCopy.title}</h1>
+            <p className="workspace-home-subtitle">{workspaceCopy.subtitle}</p>
           </div>
-        ))}
-      </section>
 
-      <section className="workspace-overview-grid">
-        <article className="panel-card">
+          <div className="workspace-home-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!desktopApiReady || oneClickBusy}
+              onClick={() => void runOneClickReadyFlow()}
+            >
+              {oneClickBusy ? copy.actions.oneClickBusy : copy.actions.oneClickReady}
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={() => navigate("chat")}>
+              {workspaceCopy.openChat}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => navigate("dashboard")}>
+              {workspaceCopy.openDashboard}
+            </button>
+          </div>
+
+          <div className="workspace-home-metrics">
+            {homeMetrics.map((metric) => (
+              <div key={metric.label} className="workspace-home-metric">
+                <span className="workspace-home-metric-label">{metric.label}</span>
+                <strong className="workspace-home-metric-value">{metric.value}</strong>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <aside className="panel-card workspace-next-card">
           <header className="panel-header">
             <div>
-              <h3 className="panel-title">{workspaceCopy.headingProgress}</h3>
-              <p className="panel-subtitle">{workspaceCopy.summary}</p>
+              <span className="console-section-kicker">{workspaceCopy.nextTitle}</span>
+              <h3 className="panel-title">{readinessLabel}</h3>
+              <p className="panel-subtitle">{workspaceCopy.spotlightSubtitle}</p>
+            </div>
+            <span className={`status-pill status-${summaryStatus}`}>{workspaceCopy.stageLabel}</span>
+          </header>
+
+          <div className={`summary-note summary-note-${oneClickTone}`}>
+            <span className="summary-note-label">{workspaceCopy.nextTitle}</span>
+            <div className="summary-note-message">{oneClickMessage || nextActionMessage}</div>
+          </div>
+
+          <div className="workspace-health-list">
+            {statusCards.map((card) => (
+              <div key={card.label} className="workspace-health-item">
+                <span className="workspace-health-label">{card.label}</span>
+                <strong className={`workspace-health-value workspace-health-value-${card.tone}`}>{card.value}</strong>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </section>
+
+      <section className="workspace-home-grid workspace-home-grid-secondary">
+        <article className="panel-card workspace-story-card">
+          <header className="panel-header">
+            <div>
+              <h3 className="panel-title">{workspaceCopy.storyTitle}</h3>
+              <p className="panel-subtitle">{workspaceCopy.storySubtitle}</p>
             </div>
             <span className={`status-pill status-${summaryStatus}`}>{readinessLabel}</span>
           </header>
 
-          <ol className="console-checklist">
+          <ol className="workspace-stage-list">
             {workflowSteps.map((step, index) => (
               <li
                 key={step.title}
-                className={`console-checklist-item console-checklist-item-${step.status ? "completed" : "pending"}`}
+                className={`workspace-stage-item workspace-stage-item-${step.status ? "completed" : "pending"}`}
               >
-                <div className="console-checklist-index">{index + 1}</div>
-                <div className="console-checklist-copy">
-                  <div className="console-checklist-item-title">{step.title}</div>
-                  <div className="console-checklist-item-hint">{step.hint}</div>
+                <div className="workspace-stage-index">{index + 1}</div>
+                <div className="workspace-stage-copy">
+                  <div className="workspace-stage-title-row">
+                    <div className="workspace-stage-title">{step.title}</div>
+                    <span className={`status-pill status-${step.status ? "ready" : "starting"}`}>
+                      {step.status ? workspaceCopy.stageDone : workspaceCopy.stagePending}
+                    </span>
+                  </div>
+                  <div className="workspace-stage-hint">{step.hint}</div>
                 </div>
                 <button type="button" className="btn btn-ghost" onClick={step.action}>
                   {step.actionLabel}
@@ -431,33 +455,23 @@ export function App(): JSX.Element {
           </ol>
         </article>
 
-        <article className="panel-card">
+        <article className="panel-card workspace-surfaces-card">
           <header className="panel-header">
             <div>
-              <h3 className="panel-title">{workspaceCopy.headingQuick}</h3>
-              <p className="panel-subtitle">
-                {desktopApiReady ? workspaceCopy.bridgeReady : workspaceCopy.bridgeMissing}
-              </p>
+              <h3 className="panel-title">{workspaceCopy.surfacesTitle}</h3>
+              <p className="panel-subtitle">{workspaceCopy.surfacesSubtitle}</p>
             </div>
           </header>
 
-          <div className="quick-grid">
-            <button type="button" className="quick-card" onClick={() => navigate("chat")}>
-              <span className="quick-card-kicker">{workspaceCopy.chat}</span>
-              <strong className="quick-card-title">{copy.nav.chat.description}</strong>
-            </button>
-            <button type="button" className="quick-card" onClick={() => navigate("dashboard")}>
-              <span className="quick-card-kicker">{workspaceCopy.dashboard}</span>
-              <strong className="quick-card-title">{dashboardUrl}</strong>
-            </button>
-            <button type="button" className="quick-card" onClick={() => navigate("installer")}>
-              <span className="quick-card-kicker">{copy.nav.installer.label}</span>
-              <strong className="quick-card-title">{installerStatusText}</strong>
-            </button>
-            <button type="button" className="quick-card" onClick={() => navigate("runtime")}>
-              <span className="quick-card-kicker">{copy.nav.runtime.label}</span>
-              <strong className="quick-card-title">{runtimeEndpoint}</strong>
-            </button>
+          <div className="workspace-surface-grid">
+            {workspaceQuickCards.map((card) => (
+              <button key={card.kicker} type="button" className="quick-card" onClick={card.action}>
+                <span className="quick-card-kicker">{card.kicker}</span>
+                <strong className="quick-card-title">{card.title}</strong>
+                <span className="quick-card-description">{card.description}</span>
+                <span className="quick-card-value">{card.value}</span>
+              </button>
+            ))}
           </div>
         </article>
       </section>
@@ -586,19 +600,17 @@ export function App(): JSX.Element {
                     <span className="sidebar-status-kicker">{workspaceCopy.summary}</span>
                     <strong className="sidebar-status-title">{readinessLabel}</strong>
                   </div>
+                  <div className={`summary-note summary-note-${oneClickTone} sidebar-status-note`}>
+                    <span className="summary-note-label">{workspaceCopy.nextTitle}</span>
+                    <div className="summary-note-message">{oneClickMessage || nextActionMessage}</div>
+                  </div>
                   <div className="sidebar-status-list">
-                    <div className="sidebar-status-item">
-                      <span className="sidebar-status-label">{copy.statusCards.runtime}</span>
-                      <strong className="sidebar-status-value">{runtimeStatusText}</strong>
-                    </div>
-                    <div className="sidebar-status-item">
-                      <span className="sidebar-status-label">{workspaceCopy.dashboard}</span>
-                      <strong className="sidebar-status-value">{dashboardStatusText}</strong>
-                    </div>
-                    <div className="sidebar-status-item">
-                      <span className="sidebar-status-label">{copy.statusCards.installer}</span>
-                      <strong className="sidebar-status-value">{installerStatusText}</strong>
-                    </div>
+                    {sidebarSummaryItems.map((item) => (
+                      <div key={item.label} className="sidebar-status-item">
+                        <span className="sidebar-status-label">{item.label}</span>
+                        <strong className="sidebar-status-value">{item.value}</strong>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -630,11 +642,10 @@ export function App(): JSX.Element {
               <div className="console-frame-status">
                 <span className={`topbar-chip topbar-chip-${runtimeHealthy ? "online" : runtimeRunning ? "warming" : "offline"}`}>
                   <span className={`status-beacon status-beacon-${runtimeHealthy ? "online" : runtimeRunning ? "warming" : "offline"}`} />
-                  {copy.statusCards.runtime}: {runtimeStatusText}
+                  {readinessLabel}
                 </span>
-                <span className={`topbar-chip topbar-chip-${dashboardReady ? "online" : "standby"}`}>
-                  <span className={`status-beacon status-beacon-${dashboardReady ? "online" : "standby"}`} />
-                  {workspaceCopy.dashboard}: {dashboardStatusText}
+                <span className="console-frame-meta">
+                  {desktopApiReady ? workspaceCopy.bridgeReady : workspaceCopy.bridgeMissing}
                 </span>
               </div>
             </header>

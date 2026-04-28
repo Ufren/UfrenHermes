@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 
 import type { RuntimeHealthDto, RuntimeProbeResponseDto, RuntimeStatus } from "@ufren/shared";
 import { ufrenBrand } from "@ufren/shared";
-import { getEmptyLabel, getRuntimeCopy, getStatusLabel, type AppLocale } from "../app/ui-copy.js";
+import { getEmptyLabel, getRuntimeCopy, getStatusLabel, type AppLocale } from "../app/i18n/index.js";
 
 type ActionState = "idle" | "loading" | "error";
 
@@ -45,33 +45,23 @@ export function RuntimeControlPanel({ locale, onSnapshotChange }: RuntimeControl
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const copy = useMemo(() => getRuntimeCopy(locale), [locale]);
+  const emptyLabel = useMemo(() => getEmptyLabel(locale), [locale]);
   const isBusy = useMemo(() => actionState === "loading", [actionState]);
   const canStart = useMemo(() => !isBusy && status !== "running" && status !== "starting", [isBusy, status]);
   const canStop = useMemo(() => !isBusy && status === "running", [isBusy, status]);
-  const runtimeSignalTone = health?.status === "running" ? "online" : status === "running" ? "warming" : "offline";
   const logLineCount = useMemo(() => logs.split(/\r?\n/).filter(Boolean).length, [logs]);
-  const runtimeSignalBars = [
-    {
-      label: copy.probeLabels.lifecycle,
-      value: status === "running" ? 90 : status === "starting" ? 60 : 22,
-      tone: status === "running" ? "success" : status === "starting" ? "warning" : "neutral"
-    },
-    {
-      label: copy.probeLabels.health,
-      value: health?.status === "running" ? 96 : health ? 48 : 20,
-      tone: health?.status === "running" ? "success" : health ? "warning" : "neutral"
-    },
-    {
-      label: copy.probeLabels.probe,
-      value: probeResult?.ok ? 88 : probeResult ? 38 : 18,
-      tone: probeResult?.ok ? "accent" : probeResult ? "warning" : "neutral"
-    },
-    {
-      label: copy.probeLabels.logs,
-      value: Math.min(96, Math.max(logLineCount > 0 ? 28 : 14, logLineCount * 2)),
-      tone: logLineCount > 0 ? "accent" : "neutral"
+  const surfaceCopy = copy.surface;
+  const statusLabel = useMemo(() => getStatusLabel(status, locale), [locale, status]);
+  const healthStatusLabel = useMemo(
+    () => (health?.status ? getStatusLabel(health.status, locale) : emptyLabel),
+    [emptyLabel, health?.status, locale]
+  );
+  const probeStatusValue = useMemo(() => {
+    if (!probeResult) {
+      return emptyLabel;
     }
-  ] as const;
+    return `${probeResult.statusCode} / ${probeResult.durationMs}ms`;
+  }, [emptyLabel, probeResult]);
 
   const refresh = useCallback(async (preserveMessage = false) => {
     try {
@@ -102,9 +92,9 @@ export function RuntimeControlPanel({ locale, onSnapshotChange }: RuntimeControl
       const api = requireDesktopApi();
       await api.openExternal(health.endpoint);
     } catch (error) {
-      setErrorText(error instanceof Error ? error.message : "Failed to open runtime endpoint");
+      setErrorText(error instanceof Error ? error.message : copy.openEndpointFailed);
     }
-  }, [health?.endpoint]);
+  }, [copy.openEndpointFailed, health?.endpoint]);
 
   const handleStart = useCallback(async () => {
     try {
@@ -195,167 +185,161 @@ export function RuntimeControlPanel({ locale, onSnapshotChange }: RuntimeControl
   }
 
   return (
-    <section className="panel-card">
-      <header className="panel-header">
-        <div>
+    <section className="runtime-surface">
+      <section className={`panel-card page-header-card runtime-page-header${health?.status === "running" ? " page-header-card-ready" : ""}`}>
+        <div className="page-header-shell">
+          <div className="page-header-copy">
+            <span className="console-section-kicker">{surfaceCopy.overviewKicker}</span>
+            <span className="page-header-eyebrow">{surfaceCopy.overviewEyebrow}</span>
             <h3 className="panel-title">{copy.title}</h3>
             <p className="panel-subtitle">{copy.subtitle}</p>
-        </div>
-        <span className={`status-pill status-${status}`}>{getStatusLabel(status, locale)}</span>
-      </header>
+          </div>
 
-      <section className="panel-banner panel-banner-runtime">
-        <div className="panel-banner-copy">
-          <span className="panel-banner-kicker">{copy.bannerKicker}</span>
-          <strong className="panel-banner-title">{copy.bannerTitle}</strong>
+          <div className="page-header-actions panel-actions action-ribbon">
+            <button type="button" disabled={!canStart} onClick={() => void handleStart()} className="btn btn-primary">
+              {copy.buttons.start}
+            </button>
+            <button type="button" disabled={!canStop} onClick={() => void handleStop()} className="btn btn-secondary">
+              {copy.buttons.stop}
+            </button>
+            {health?.status === "running" && health?.endpoint ? (
+              <button type="button" onClick={() => void handleOpenEndpoint()} className="btn btn-secondary">
+                {copy.buttons.openHealth}
+              </button>
+            ) : null}
+            <button type="button" disabled={isBusy} onClick={() => void refresh()} className="btn btn-ghost">
+              {copy.buttons.refresh}
+            </button>
+          </div>
         </div>
-        <div className="panel-banner-metrics">
-          <div className="panel-banner-metric">
-            <span className="panel-banner-metric-label">{copy.metrics.status}</span>
-            <strong className="panel-banner-metric-value">{getStatusLabel(status, locale)}</strong>
+
+        {errorText ? (
+          <div className="feedback feedback-error">{errorText}</div>
+        ) : message ? (
+          <div className="feedback feedback-success">{message}</div>
+        ) : (
+          <div className="summary-note summary-note-neutral page-header-summary">
+            <span className="summary-note-label">{copy.telemetrySignal}</span>
+            <div className="summary-note-message">{health?.detail ?? copy.pulseFallback(statusLabel)}</div>
           </div>
-          <div className="panel-banner-metric">
-            <span className="panel-banner-metric-label">{copy.metrics.health}</span>
-            <strong className="panel-banner-metric-value">
-              {health?.status ? getStatusLabel(health.status, locale) : getEmptyLabel(locale)}
-            </strong>
+        )}
+
+        <div className="page-header-meta">
+          <div className="page-header-metric">
+            <span className="page-header-metric-label">{copy.metrics.status}</span>
+            <strong className="page-header-metric-value">{statusLabel}</strong>
           </div>
-          <div className="panel-banner-metric">
-            <span className="panel-banner-metric-label">{copy.metrics.probePath}</span>
-            <strong className="panel-banner-metric-value">{probePath}</strong>
+          <div className="page-header-metric">
+            <span className="page-header-metric-label">{copy.metrics.health}</span>
+            <strong className="page-header-metric-value">{healthStatusLabel}</strong>
           </div>
+          <div className="page-header-metric">
+            <span className="page-header-metric-label">{copy.metrics.probePath}</span>
+            <strong className="page-header-metric-value">{probePath}</strong>
+          </div>
+        </div>
+
+        <div className="page-header-support-grid">
+          <div className="page-header-support-card">
+            <div className="page-header-support-copy">
+              <span className="page-header-support-label">{surfaceCopy.telemetryTitle}</span>
+              <p className="page-header-support-text">{surfaceCopy.telemetrySubtitle}</p>
+            </div>
+
+            <section className="kv-grid runtime-inline-kv-grid">
+              <div className="kv-item">
+                <span className="kv-label">{copy.fields.endpoint}</span>
+                <span className="kv-value">{health?.endpoint ?? emptyLabel}</span>
+              </div>
+              <div className="kv-item">
+                <span className="kv-label">{copy.telemetryActivity}</span>
+                <span className="kv-value">{copy.logLines(logLineCount)}</span>
+              </div>
+              <div className="kv-item kv-item-wide">
+                <span className="kv-label">{copy.fields.healthDetail}</span>
+                <span className="kv-value">{health?.detail ?? copy.pulseFallback(statusLabel)}</span>
+              </div>
+            </section>
+          </div>
+
+          <section className="kv-grid page-header-kv-grid">
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.lastCheck}</span>
+              <span className="kv-value">{health?.lastCheckedAt ?? emptyLabel}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.probeLabels.probe}</span>
+              <span className="kv-value">{probeStatusValue}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.probeLabels.logs}</span>
+              <span className="kv-value">{copy.logLines(logLineCount)}</span>
+            </div>
+          </section>
         </div>
       </section>
 
-      <section className="content-frame">
-        <div className="content-frame-header">
-          <div className="content-frame-title">{copy.snapshotTitle}</div>
-          <div className="content-frame-caption">{copy.snapshotCaption}</div>
-        </div>
-        <section className="kv-grid">
-          <div className="kv-item">
-            <span className="kv-label">{copy.fields.endpoint}</span>
-            <span className="kv-value">{health?.endpoint ?? getEmptyLabel(locale)}</span>
+      <section className="runtime-detail-grid">
+        <section className="content-frame">
+          <div className="content-frame-header">
+            <div className="content-frame-title">{copy.snapshotTitle}</div>
+            <div className="content-frame-caption">{copy.snapshotCaption}</div>
           </div>
-          <div className="kv-item">
-            <span className="kv-label">{copy.fields.lastCheck}</span>
-            <span className="kv-value">{health?.lastCheckedAt ?? getEmptyLabel(locale)}</span>
+          <section className="kv-grid">
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.endpoint}</span>
+              <span className="kv-value">{health?.endpoint ?? emptyLabel}</span>
+            </div>
+            <div className="kv-item">
+              <span className="kv-label">{copy.fields.lastCheck}</span>
+              <span className="kv-value">{health?.lastCheckedAt ?? emptyLabel}</span>
+            </div>
+            <div className="kv-item kv-item-wide">
+              <span className="kv-label">{copy.fields.healthDetail}</span>
+              <span className="kv-value">{health?.detail ?? emptyLabel}</span>
+            </div>
+          </section>
+        </section>
+
+        <section className="probe-card content-frame content-frame-accent">
+          <div className="probe-header">
+            <strong className="state-title">{copy.probeTitle}</strong>
+            <span className="state-muted">{copy.probeHint}</span>
           </div>
-          <div className="kv-item kv-item-wide">
-            <span className="kv-label">{copy.fields.healthDetail}</span>
-            <span className="kv-value">{health?.detail ?? getEmptyLabel(locale)}</span>
+          <div className="probe-row">
+            <input
+              className="inline-input"
+              value={probePath}
+              onChange={(event) => setProbePath(event.target.value)}
+              placeholder="/health"
+            />
+            <button
+              type="button"
+              disabled={isBusy || probeState === "loading"}
+              onClick={() => void handleProbe()}
+              className="btn btn-ghost"
+            >
+              {probeState === "loading" ? copy.buttons.probing : copy.buttons.probe}
+            </button>
           </div>
+          {probeResult ? (
+            <div className={`probe-result ${probeResult.ok ? "probe-result-ok" : "probe-result-error"}`}>
+              <span>HTTP {probeResult.statusCode}</span>
+              <span>{probeResult.durationMs}ms</span>
+              <span>{probeResult.endpoint}</span>
+            </div>
+          ) : null}
+          {probeResult?.bodySnippet ? <pre className="trace-block trace-block-runtime">{probeResult.bodySnippet}</pre> : null}
+          {probeError ? (
+            <div className="error-state">
+              <strong className="state-title">{copy.probeFailedTitle}</strong>
+              <span className="state-muted">{probeError}</span>
+            </div>
+          ) : null}
         </section>
       </section>
 
-      <section className="content-frame content-frame-muted">
-        <div className="content-frame-header">
-          <div className="content-frame-title">{copy.telemetryTitle}</div>
-          <div className="content-frame-caption">{copy.telemetryCaption}</div>
-        </div>
-        <div className="runtime-telemetry-grid">
-          <div className={`runtime-pulse-card runtime-pulse-card-${runtimeSignalTone}`}>
-            <div className="runtime-pulse-head">
-              <span className={`status-beacon status-beacon-${runtimeSignalTone}`} />
-              <strong className="runtime-pulse-title">{copy.telemetrySignal}</strong>
-            </div>
-            <div className="runtime-pulse-value">{health?.status ? getStatusLabel(health.status, locale) : getStatusLabel(status, locale)}</div>
-            <div className="runtime-pulse-caption">
-              {health?.detail ?? copy.pulseFallback(getStatusLabel(status, locale))}
-            </div>
-          </div>
-          <div className="runtime-monitor-card">
-            <div className="runtime-monitor-head">
-              <span className="runtime-monitor-label">{copy.telemetryActivity}</span>
-              <span className="runtime-monitor-value">
-                {probeResult ? `${probeResult.durationMs}ms` : copy.logLines(logLineCount)}
-              </span>
-            </div>
-            <div className="runtime-monitor-bars" aria-hidden="true">
-              {runtimeSignalBars.map((bar) => (
-                <span
-                  key={bar.label}
-                  className={`runtime-monitor-bar runtime-monitor-bar-${bar.tone}`}
-                  style={{ "--bar-height": `${bar.value}%` } as CSSProperties}
-                />
-              ))}
-            </div>
-            <div className="runtime-monitor-legend">
-              {runtimeSignalBars.map((bar) => (
-                <div key={bar.label} className="runtime-monitor-legend-item">
-                  <span className={`hero-wave-dot hero-wave-dot-${bar.tone}`} />
-                  <span>{bar.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="panel-actions action-ribbon">
-        <button type="button" disabled={!canStart} onClick={() => void handleStart()} className="btn btn-primary">
-          {copy.buttons.start}
-        </button>
-        <button type="button" disabled={!canStop} onClick={() => void handleStop()} className="btn btn-secondary">
-          {copy.buttons.stop}
-        </button>
-        {health?.status === "running" && health?.endpoint && (
-          <button type="button" onClick={() => void handleOpenEndpoint()} className="btn btn-secondary">
-            {locale === "zh" ? "打开健康地址" : "Open Health Endpoint"}
-          </button>
-        )}
-        <button type="button" disabled={isBusy} onClick={() => void refresh()} className="btn btn-ghost">
-          {copy.buttons.refresh}
-        </button>
-      </div>
-
-      <section className="probe-card content-frame content-frame-accent">
-        <div className="probe-header">
-          <strong className="state-title">{copy.probeTitle}</strong>
-          <span className="state-muted">{copy.probeHint}</span>
-        </div>
-        <div className="probe-row">
-          <input
-            className="inline-input"
-            value={probePath}
-            onChange={(event) => setProbePath(event.target.value)}
-            placeholder="/health"
-          />
-          <button
-            type="button"
-            disabled={isBusy || probeState === "loading"}
-            onClick={() => void handleProbe()}
-            className="btn btn-ghost"
-          >
-            {probeState === "loading" ? copy.buttons.probing : copy.buttons.probe}
-          </button>
-        </div>
-        {probeResult ? (
-          <div className={`probe-result ${probeResult.ok ? "probe-result-ok" : "probe-result-error"}`}>
-            <span>HTTP {probeResult.statusCode}</span>
-            <span>{probeResult.durationMs}ms</span>
-            <span>{probeResult.endpoint}</span>
-          </div>
-        ) : null}
-        {probeResult?.bodySnippet ? <pre className="trace-block trace-block-runtime">{probeResult.bodySnippet}</pre> : null}
-        {probeError ? (
-          <div className="error-state">
-            <strong className="state-title">{copy.probeFailedTitle}</strong>
-            <span className="state-muted">{probeError}</span>
-          </div>
-        ) : null}
-      </section>
-
-      {errorText ? (
-        <div className="error-state">
-          <strong className="state-title">{copy.runtimeFailedTitle}</strong>
-          <span className="state-muted">{errorText}</span>
-        </div>
-      ) : null}
-
-      {message ? <div className="feedback feedback-success">{message}</div> : null}
-
-      <section className="content-frame content-frame-muted">
+      <section className="content-frame content-frame-muted runtime-logs-card">
         <div className="content-frame-header">
           <div className="content-frame-title">{copy.outputTitle}</div>
           <div className="content-frame-caption">{copy.outputCaption}</div>
